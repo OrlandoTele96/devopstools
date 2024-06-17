@@ -30,7 +30,8 @@
                   mountPath: /nexus-data
           volumes:
             - name: nexus-data
-              emptyDir: {}
+              persistentVolumeClaim:
+                claimName: nexus-pvc-8
 
 
 ---
@@ -46,19 +47,19 @@ spec:
     - protocol: TCP
       port: 8081
       targetPort: 8081
-  type: LoadBalancer
+  type: NodePort
 
 ---
 
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nexus-data-pvc
+  name: nexus-pvc-8
   namespace: devops
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
-  storageClassName: standard
+      storage: 8Gi
+  storageClassName: local-storage
