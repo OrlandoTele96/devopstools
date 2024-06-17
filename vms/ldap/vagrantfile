@@ -1,0 +1,58 @@
+# Vagrantfile
+
+Vagrant.configure("2") do |config|
+    config.vm.box = "ubuntu/bionic64" # Usamos Ubuntu 18.04 LTS (Bionic Beaver)
+  
+    # Configurar una IP estática
+    config.vm.network "private_network", ip: "192.168.59.51"
+  
+    config.vm.provider "virtualbox" do |vb|
+      vb.memory = "1024"
+      vb.cpus = 2
+    end
+  
+    config.vm.provision "shell", inline: <<-SHELL
+      # Actualizar paquetes
+      sudo apt-get update
+      
+      # Instalar slapd y ldap-utils
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y slapd ldap-utils
+  
+      # Configuración inicial de slapd
+      sudo debconf-set-selections <<EOF
+  slapd slapd/internal/generated_adminpw password admin
+  slapd slapd/internal/adminpw password admin
+  slapd slapd/password2 password admin
+  slapd slapd/password1 password admin
+  slapd slapd/domain string example.com
+  slapd shared/organization string "Example Organization"
+  slapd slapd/backend select HDB
+  slapd slapd/purge_database boolean true
+  slapd slapd/move_old_database boolean true
+  slapd slapd/allow_ldap_v2 boolean false
+  EOF
+  
+      sudo DEBIAN_FRONTEND=noninteractive dpkg-reconfigure slapd
+  
+      # Crear una unidad organizacional (ou)
+      ldapadd -x -D cn=admin,dc=example,dc=com -w admin <<EOF
+  dn: ou=People,dc=example,dc=com
+  objectClass: organizationalUnit
+  ou: People
+  EOF
+  
+      # Añadir un ejemplo de entrada
+      ldapadd -x -D cn=admin,dc=example,dc=com -w admin <<EOF
+  dn: uid=jdoe,ou=People,dc=example,dc=com
+  objectClass: inetOrgPerson
+  sn: Doe
+  givenName: John
+  cn: John Doe
+  displayName: John Doe
+  uid: jdoe
+  mail: jdoe@example.com
+  userPassword: password
+  EOF
+    SHELL
+  end
+  

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-server-t24
+  namespace: des-t24-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-server-t24
+  template:
+    metadata:
+      labels:
+        app: sql-server-t24
+    spec:
+      containers:
+        - name: sql-server
+          image: mcr.microsoft.com/mssql/server:2019-latest
+          ports:
+            - containerPort: 1433
+              name: sql-port
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_SA_PASSWORD
+              value: "Password123."
+          volumeMounts:
+            - name: sql-server-data
+              mountPath: /var/opt/mssql
+      volumes:
+        - name: sql-server-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-server-t24-service
+  namespace: des-t24-db
+spec:
+  selector:
+    app: sql-server-t24
+  ports:
+    - protocol: TCP
+      port: 1433
+      targetPort: 1433
+      nodePort: 31000  # Puerto NodePort que deseas asignar
+  type: NodePort

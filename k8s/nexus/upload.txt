@@ -1,0 +1,15 @@
+/home/jgonzalez/Documentos/Chakray/Invex/wso2is-6.1.0-bkp.zip
+
+curl -X 'POST' \
+            'http://192.168.2.10:9081/service/rest/v1/components?repository=wso2' \
+            -H 'accept:application/json' \
+            -H 'Content-Type:multipart/form-data' \
+            -H 'Authorization:Basic YWRtaW46YWRtaW4=' \
+            -F 'raw.directory=is' \
+            -F 'raw.asset1=@/home/jgonzalez/Documentos/Chakray/Invex/wso2is-6.1.0-bkp.zip;type=application/x-zip-compressed' \
+            -F 'raw.asset1.filename=wso2is-6.1.0-bkp.zip'
+
+curl -O -u admin:admin http://192.168.2.10:9081/repository/wso2/is/wso2is-6.1.0-bkp.zip
+
+
+   4671775c-e87d-44a2-8018-adef890d4979%

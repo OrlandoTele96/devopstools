@@ -1,0 +1,23 @@
+Vagrant.configure("2") do |config|
+    # Configuración de la máquina virtual
+    config.vm.box = "ubuntu/bionic64"
+    config.vm.network "private_network", ip: "192.168.59.50"
+  
+    # Provisión de NFS
+    config.vm.provision "shell", inline: <<-SHELL
+      # Instalar el servidor NFS
+      sudo apt-get update
+      sudo apt-get install -y nfs-kernel-server
+  
+      # Configurar el directorio a exportar
+      sudo mkdir -p /opt/wso2
+      sudo chown nobody:nogroup /opt/wso2
+      sudo chmod 777 /opt/wso2
+  
+      # Configurar exportación NFS
+      echo "/opt/wso2 *(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+      sudo exportfs -a
+      sudo systemctl restart nfs-kernel-server
+    SHELL
+  end
+  

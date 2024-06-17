@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      serviceAccountName: jenkins-sa
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        ports:
+          - name: http-port
+            containerPort: 8080
+          - name: jnlp-port
+            containerPort: 50000
+        volumeMounts:
+          - name: jenkins-vol
+            mountPath: /var/jenkins_vol
+      volumes:
+        - name: jenkins-vol
+          persistentVolumeClaim:
+            claimName: jenkins-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2024-03-15T16:06:49Z"
+  name: jenkins
+  namespace: jenkins
+  resourceVersion: "26399"
+  uid: 501fd83e-aeb4-4600-844c-a50b368e3a14
+spec:
+  allocateLoadBalancerNodePorts: true
+  clusterIP: 10.105.109.50
+  clusterIPs:
+  - 10.105.109.50
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - nodePort: 30448
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: jenkins
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-pvc
+  namespace: jenkins
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

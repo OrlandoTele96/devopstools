@@ -1,0 +1,327 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Always
+      containers:
+      - image: elasticsearch:7.10.1
+        name: elasticsearch
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests: 
+            cpu: 500m
+            memory: 1300Mi
+        env:
+          - name: discovery.type
+            value: single-node
+          - name: cluster.name
+            value: elasticsearch-cluster
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        ports:
+        - containerPort: 9200 # for REST API.
+          name: rest
+          protocol: TCP
+        - containerPort: 9300 # for inter-node communication.
+          name: inter-node
+          protocol: TCP
+        volumeMounts:
+        - name: elasticsearch120
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          readOnly: true
+          subPath: elasticsearch.yml
+      volumes:
+      #agrego el disco incrementado
+      - name: elasticsearch120
+        persistentVolumeClaim:
+          claimName: pvc-es-data
+      - name: config
+        configMap:
+          name: elasticsearch-data-config
+      initContainers:
+      - name: fix-permissions
+        image: busybox #busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: elasticsearch120
+          mountPath: /usr/share/elasticsearch/data
+      # To prevent OOM errors.
+      - name: increase-vm-max-map
+        image: busybox #busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true 
+      - name: increase-fd-ulimit
+        image: busybox #busybox
+        command: ["sh", "-c", "ulimit -n 65536"]
+        securityContext:
+          privileged: true
+  volumeClaimTemplates:
+  - metadata:
+      name: pvc-es-data
+      labels:
+        app: elasticsearch
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: standard
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: logging
+  name: elasticsearch-data-config
+  labels:
+    app: elasticsearch
+    role: data
+data:
+  elasticsearch.yml: |-
+    cluster.name: "docker-cluster"
+    network.host: 0.0.0.0
+    xpack.security.enabled: true
+    discovery.type: single-node
+
+---
+# Elasticsearch Service
+kind: Service
+apiVersion: v1
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+spec:
+  ports:
+    - port: 9200
+      name: rest
+    - port: 9300
+      name: inter-node
+  selector:
+    app: elasticsearch
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: kibana:7.9.3
+        ports:
+        - containerPort: 5601
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 1500m
+            memory: 1536Mi
+          requests:
+            cpu: 1500m
+            memory: 1536Mi
+        env:
+          - name: ELASTICSEARCH_URL
+            value: http://elasticsearch:9200
+          - name: KIBANA_DEFAULTAPPID
+            value: discover
+          - name: ELASTICSEARCH_USER
+            value: "elastic"
+          - name: ELASTICSEARCH_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: elasticsearch-pw-elastic
+                key: password
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/kibana/config/kibana.yml
+          readOnly: true
+          subPath: kibana.yml
+      volumes:
+      - name: config
+        configMap:
+          name: kibana-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: logging
+  name: kibana-config
+  labels:
+    app: kibana
+data:
+  kibana.yml: |-
+    server.host: "0"
+    server.name: kibana
+    elasticsearch:
+      hosts: [ "http://elasticsearch:9200" ]
+      username: ${ELASTICSEARCH_USER}
+      password: ${ELASTICSEARCH_PASSWORD}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  ports:
+  - name: http
+    port: 5601
+    protocol: TCP
+    targetPort: 5601
+  selector:
+    app: kibana
+  type: NodePort
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: logging
+data:
+  logstash.conf: |-
+    input {
+      kafka {
+        bootstrap_servers => "localhost:9092"
+        topics => ["my_topic"]
+        }
+    }
+
+    filter {
+        json {
+        source => "message"
+        }
+
+        mutate{
+        remove_field => ["message"]
+        }
+    }
+
+    output {
+
+      elasticsearch {
+        hosts => ["localhost:9200"]
+        index => "my_topic"
+      }
+
+      stdout { codec => rubydebug }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: logging
+  name: logstash-config-2
+data:
+  logstash.yml: |-
+    http.host: "0.0.0.0"
+    xpack.monitoring.elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.username: elastic
+    xpack.monitoring.elasticsearch.password: Ii3SSMmJ8nkvVnbuVNxH
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: logstash
+  namespace: logging
+spec:
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      hostname: logstash
+      containers:
+      - name: logstash
+        ports:      
+          - containerPort: 9600
+            name: logstash
+        image: logstash:7.9.3
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1536Mi
+          limits:
+            cpu: 1000m
+            memory: 1536Mi
+        volumeMounts:
+        - name: logstash-config
+          mountPath: /usr/share/logstash/pipeline/
+        - name: logstash-config-2
+          mountPath: /usr/share/logstash/config/logstash.yml
+          readOnly: true
+          subPath: logstash.yml
+        command:
+        - logstash
+      volumes:
+      # Previously defined ConfigMap object.
+      - name: logstash-config
+        configMap:
+          name: logstash-config
+          items:
+          - key: logstash.conf
+            path: logstash.conf
+      - name: logstash-config-2
+        configMap:
+          name: logstash-config-2
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: logstash
+  namespace: logging
+spec:
+  selector:
+    app: logstash
+  ports:  
+  - protocol: TCP
+    port: 9600
+    targetPort: 9600
+    name: logstash
+  type: NodePort
+---
+
