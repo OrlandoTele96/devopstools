@@ -1,0 +1,42 @@
+---
+- name: Instalar MicroK8s en Ubuntu
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Actualizar lista de paquetes
+      apt:
+        update_cache: yes
+
+    - name: Instalar dependencias necesarias
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - snapd
+
+    - name: Asegurarse de que el paquete snapd está instalado
+      apt:
+        name: snapd
+        state: latest
+
+    - name: Instalar MicroK8s
+      snap:
+        name: microk8s
+        classic: true
+        channel: "1.30"
+
+    - name: Añadir usuario actual al grupo microk8s
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: microk8s
+        append: yes
+
+    - name: Activar complementos de MicroK8s (opcional)
+      command: microk8s.enable dns dashboard
+
+    - name: Asegurar que el servicio de MicroK8s está en ejecución
+      service:
+        name: snap.microk8s.daemon-kubelet
+        state: started
+        enabled: yes

@@ -31,7 +31,7 @@
           volumes:
             - name: nexus-data
               persistentVolumeClaim:
-                claimName: nexus-pvc-8
+                claimName: nexus-pvc
 
 
 ---
@@ -47,19 +47,19 @@ spec:
     - protocol: TCP
       port: 8081
       targetPort: 8081
-  type: NodePort
+  type: LoadBalancer
 
 ---
 
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nexus-pvc-8
+  name: nexus-pvc
   namespace: devops
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 8Gi
-  storageClassName: local-storage
+      storage: 5Gi
+  storageClassName: microk8s-hostpath
