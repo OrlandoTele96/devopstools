@@ -6,6 +6,7 @@ metadata:
   name: argocd-server
   namespace: argocd
 spec:
+  ingressClassName: apisix
   http:
     - name: route-to-argocd
       match:
@@ -13,6 +14,7 @@ spec:
           - www.jorge-gonzalez.info
         paths:
           - /argo
+
       backends:
         - serviceName: argocd-server
-          servicePort: 80
+          servicePort: 443

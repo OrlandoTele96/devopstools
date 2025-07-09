@@ -1,0 +1,43 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: apisix
+spec:
+  controllerName: "apisix.apache.org/apisix-ingress-controller"
+
+---
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: apisix
+  namespace: default
+spec:
+  gatewayClassName: apisix
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+
+---
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: httpbin
+spec:
+  parentRefs:
+  - name: apisix
+  hostnames:
+  - backends.example
+  rules:
+  - matches: 
+    - path:
+        type: Exact
+        value: /get
+    - path:
+        type: Exact
+        value: /headers
+    backendRefs:
+    - name: httpbin
+      port: 80
