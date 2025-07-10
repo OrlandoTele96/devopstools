@@ -1,5 +1,3 @@
-
----
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
 metadata:
@@ -14,7 +12,25 @@ spec:
           - www.jorge-gonzalez.info
         paths:
           - /argo
-
+      
       backends:
         - serviceName: argocd-server
           servicePort: 443
+      plugins:
+        - name: proxy-rewrite
+          enable: true
+          config:
+            scheme: https
+            headers:
+              X-Forwarded-Proto: https
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: argocd-tls
+  namespace: argocd  # Same namespace as your ArgoCD installation
+spec:
+  hosts:
+    - www.jorge-gonzalez.info  # Your ArgoCD domain
+  type: "passthrough"
+
