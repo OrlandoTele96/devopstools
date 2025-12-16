@@ -35,7 +35,7 @@ kind: Service
 metadata:
   name: postgres-service
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: postgres
   ports:
@@ -50,7 +50,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: standard
+  storageClassName: nfs-client
   resources:
     requests:
       storage: 1Gi
