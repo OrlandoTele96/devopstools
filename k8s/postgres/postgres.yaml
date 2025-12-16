@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: postgres:latest
+        image: us-central1-docker.pkg.dev/jorgegonzalezdev-site/devops/postgres:15.15
         ports:
         - containerPort: 5432
         env:
@@ -24,7 +24,7 @@ spec:
           value: Password
         volumeMounts:
         - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql
       volumes:
       - name: postgres-storage
         persistentVolumeClaim:
