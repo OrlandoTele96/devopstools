@@ -30,13 +30,13 @@ spec:
           value: Password
         volumeMounts:
         - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql
       imagePullSecrets:
       - name: gar-pull-secret
-    volumes:
-    - name: postgres-storage
-      persistentVolumeClaim:
-        claimName: postgres-pvc
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
 
 ---
 apiVersion: v1
