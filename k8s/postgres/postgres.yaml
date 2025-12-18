@@ -13,26 +13,40 @@ spec:
       labels:
         app: postgres
     spec:
+      # Bitnami images run as user 1001 by default.
+      # We use fsGroup to try and align permissions, but the initContainer is the real fix.
       securityContext:
-          fsGroup: 0
-          runAsUser: 0
-          runAsGroup: 0
-
+        fsGroup: 1001
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        # We simply open the gate. We make the mount writable by "others".
+        # Since Bitnami skips the chown check, this write access is all it needs.
+        command: ["sh", "-c", "chmod 777 /bitnami/postgresql"]
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /bitnami/postgresql
       containers:
       - name: postgres
-        image: us-central1-docker.pkg.dev/jorgegonzalezdev-site/devops/postgres:15.15
+        # CHANGE: Use Bitnami image (handles NFS permissions gracefully)
+        image: bitnamilegacy/postgresql:15
         ports:
         - containerPort: 5432
         env:
-        - name: POSTGRES_USER
+        # CHANGE: Bitnami uses different variable names
+        - name: POSTGRESQL_USERNAME
           value: postgres
-        - name: POSTGRES_PASSWORD
+        - name: POSTGRESQL_PASSWORD
           value: Password
+        - name: POSTGRESQL_DATABASE
+          value: my_database
         volumeMounts:
         - name: postgres-storage
-          mountPath: /var/lib/postgresql
-      imagePullSecrets:
-      - name: gar-pull-secret
+          mountPath: /bitnami/postgresql
+      # (Optional) If you have image pull secrets for Docker Hub, keep them. 
+      # Bitnami is public, so you might not need the secret unless you mirror it.
+      # imagePullSecrets:
+      # - name: gar-pull-secret
       volumes:
       - name: postgres-storage
         persistentVolumeClaim:
