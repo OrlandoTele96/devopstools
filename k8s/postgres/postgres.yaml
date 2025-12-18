@@ -33,15 +33,10 @@ spec:
           mountPath: /var/lib/postgresql/data
       imagePullSecrets:
       - name: gar-pull-secret
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: nfs-client
-      resources:
-        requests:
-          storage: 1Gi
+    volumes:
+    - name: postgres-storage
+      persistentVolumeClaim:
+        claimName: postgres-pvc
 
 ---
 apiVersion: v1
