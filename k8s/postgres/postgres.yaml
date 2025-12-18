@@ -27,7 +27,7 @@ spec:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
       imagePullSecrets:
-      - name: gar-secret-pull
+      - name: gar-pull-secret
   volumeClaimTemplates:
   - metadata:
       name: postgres-storage
